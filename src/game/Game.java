@@ -159,10 +159,10 @@ public class Game implements GameAdapter{
     @Override
     public List<GeometryMove> getPossibleMoves(Vec2 pos) {
         Cell cell = getCell(pos);
-        if(cell == null) return null;
+        if(cell == null) return new ArrayList<>();
 
         Figure figure = cell.getFigure();
-        if(figure == null) return null;
+        if(figure == null) return new ArrayList<>();
 
         List<Move> possibleMoves = cell.getFigure().getPossibleMoves();
 

@@ -19,24 +19,26 @@ public class Server {
 
     private final List<Room> rooms = new ArrayList<>();
 
-    boolean lock = false;
+    volatile boolean lock = false;
 
 
     public Server(int port) throws IOException {
         serverSocket = new ServerSocket(port);
     }
 
-    public void start() throws IOException {
+    public void start(boolean with_bots) throws IOException {
         System.out.println("Game server started on port: "+serverSocket.getLocalPort());
 
 
         ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
         executor.scheduleAtFixedRate(() -> {
+            while (lock) Thread.onSpinWait();
             lock = true;
             for (int i = rooms.size() - 1; i >= 0; i--) {
                 Room room = rooms.get(i);
-                rooms.remove(i);
-                if(!room.roomAlive(1000)) {
+                if(!room.roomAlive(60000)) {
+                    System.out.println("kill room:" + i);
+                    rooms.remove(i);
                     try {
                         room.kill();
                     } catch (IOException e) {
@@ -58,23 +60,58 @@ public class Server {
 
             String req = in.readLine();
             if(req.toCharArray()[0] == 'h') {
-                Side side = Room.parseSide(req.toCharArray()[1]);
-
+                Side side = ConvertUtils.parseSide(req.toCharArray()[1]);
                 // new room
                 System.out.println("creating new room");
                 out.println("h" + rooms.size());
-                Room room = new Room(side);
+                Room room = new Room(side, with_bots);
                 switch (side){
                     case FOX_TURN -> room.setFox(in, out);
                     case GOOSE_TURN -> room.setGoose(in, out);
                 }
-                while (lock);
-                rooms.add(room);
 
-                Thread t = new Thread(room);
-                t.start();
+                while (lock) Thread.onSpinWait();
+                lock = true;
+                rooms.add(room);
+                lock = false;
+
                 System.out.println("created");
-            } else {
+            } else if(req.toCharArray()[0] == 'c') {
+
+                int roomId = Integer.parseInt(req.substring(1));
+                System.out.println("connecting to exist room:" + roomId);
+
+                if(roomId >= rooms.size()) {
+                    System.out.println("illegal room num");
+                    continue;
+                }
+                while (lock) Thread.onSpinWait();
+                lock = true;
+                Room room = rooms.get(roomId);
+                lock = false;
+
+                boolean res;
+                if(room == null || room.getFreeSide() == null) {
+                    System.out.println("cant connect");
+                    if(room == null){
+                        System.out.println("room is null");
+                    }
+                    else if(room.getFreeSide() == null) {
+                        System.out.println("room is filled");
+                    }
+                    res = false;
+                }
+                else {
+                    System.out.println("connect, free side:" + room.getFreeSide());
+                    switch (room.getFreeSide()) {
+                        case FOX_TURN ->  room.setFox(in, out);
+                        case GOOSE_TURN -> room.setGoose(in, out);
+                    }
+                    res = true;
+                }
+                out.println("c" + ConvertUtils.toBoolean(res));
+            }
+            else {
                 System.out.println("illegal connect params");
             }
 

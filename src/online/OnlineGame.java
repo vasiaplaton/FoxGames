@@ -13,6 +13,8 @@ import java.util.List;
 public class OnlineGame implements GameAdapter {
     private final PrintWriter out;
     private final BufferedReader in;
+
+    private final boolean debug = false;
     public OnlineGame(String ip, int port) throws IOException {
         try {
             Socket clientSocket = new Socket(ip, port);
@@ -23,6 +25,12 @@ public class OnlineGame implements GameAdapter {
         }
     }
 
+    public void assertFirstTo(String in, char c){
+        if(in.toCharArray()[0] != c) {
+            throw new RuntimeException();
+        }
+    }
+
     /**
      * sends c + roomId + "\n"
      * @param roomId room to connect
@@ -30,6 +38,7 @@ public class OnlineGame implements GameAdapter {
      */
     public boolean connectToExistingRoom(int roomId){
         String resp = sendMessage("c" + roomId);
+        assertFirstTo(resp, 'c');
         return ConvertUtils.parseBoolean(resp.toCharArray()[1]);
     }
 
@@ -43,13 +52,17 @@ public class OnlineGame implements GameAdapter {
     public Integer createNewRoom(Side side){
         char c = ConvertUtils.toSide(side);
         String resp = sendMessage("h" + c);
+        assertFirstTo(resp, 'h');
         return Integer.parseInt(resp.substring(1));
     }
 
     private String sendMessage(String msg) {
+        if(debug) System.out.println("c req:" + msg);
         try {
             out.println(msg);
-            return in.readLine();
+            String input = in.readLine();
+            if(debug) System.out.println("c rsp:" + input);
+            return input;
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -63,9 +76,7 @@ public class OnlineGame implements GameAdapter {
     @Override
     public int getBoardSize() {
         String resp = sendMessage("b");
-        if(resp.toCharArray()[0] != 'b') {
-            throw new RuntimeException();
-        }
+        assertFirstTo(resp, 'b');
         return Integer.parseInt(resp.substring(1));
     }
 
@@ -77,9 +88,7 @@ public class OnlineGame implements GameAdapter {
     @Override
     public Side whichMoveNow() {
         String resp = sendMessage("n");
-        if(resp.toCharArray()[0] != 'n') {
-            throw new RuntimeException();
-        }
+        assertFirstTo(resp, 'n');
         return ConvertUtils.parseSide(resp.toCharArray()[1]);
     }
 
@@ -91,9 +100,7 @@ public class OnlineGame implements GameAdapter {
     @Override
     public Side getWinner() {
         String resp = sendMessage("w");
-        if(resp.toCharArray()[0] != 'w') {
-            throw new RuntimeException();
-        }
+        assertFirstTo(resp, 'w');
         return ConvertUtils.parseSide(resp.toCharArray()[1]);
     }
 
@@ -106,6 +113,7 @@ public class OnlineGame implements GameAdapter {
     @Override
     public List<Vec2> getMovesToAllCloseNeighbours(Vec2 cellPos) {
         String resp = sendMessage("a" + cellPos.x + "," + cellPos.y ); // n0,0
+        assertFirstTo(resp, 'a');
         return ConvertUtils.parseList(resp.substring(1));
     }
 
@@ -117,9 +125,7 @@ public class OnlineGame implements GameAdapter {
     @Override
     public GameCellStates getCellState(Vec2 pos) {
         String resp = sendMessage("s" + ConvertUtils.toVec(pos));
-        if(resp.toCharArray()[0] != 's') {
-            throw new RuntimeException();
-        }
+        assertFirstTo(resp, 's');
         return ConvertUtils.parseState(resp.toCharArray()[1]);
     }
 
@@ -131,9 +137,7 @@ public class OnlineGame implements GameAdapter {
     @Override
     public boolean move(Vec2 startPos, Vec2 endPos) {
         String resp = sendMessage("m" + ConvertUtils.toVec(startPos) + ":" + ConvertUtils.toVec(endPos)); // m0,0:2,1
-        if(resp.toCharArray()[0] != 'm') {
-            throw new RuntimeException();
-        }
+        assertFirstTo(resp, 'm');
         return ConvertUtils.parseBoolean(resp.toCharArray()[1]);
 
     }
@@ -147,6 +151,7 @@ public class OnlineGame implements GameAdapter {
     @Override
     public List<GeometryMove> getPossibleMoves(Vec2 pos) {
         String resp = sendMessage("p" + ConvertUtils.toVec(pos));
+        assertFirstTo(resp, 'p');
         return ConvertUtils.parseGeometryMoves(resp.substring(1));
     }
 }
