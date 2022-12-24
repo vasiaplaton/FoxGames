@@ -28,7 +28,7 @@ class inputServerDialog extends JDialog {
         });
 
         buttonOKtoNew.addActionListener(e -> {
-            params = new ServerParams(hostnameField.getText(), Integer.parseInt(portField.getText()), true,
+            params = new ServerParams(hostnameField.getText(), Integer.parseInt(portField.getText()), false,
                     null, (Side) comboBoxSIde.getSelectedItem());
             onCancel();
         });

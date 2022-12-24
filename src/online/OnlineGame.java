@@ -11,27 +11,11 @@ import java.net.Socket;
 import java.util.List;
 
 public class OnlineGame implements GameAdapter {
-    private Socket clientSocket;
-    private PrintWriter out;
-    private BufferedReader in;
-    /*
-    }
-
-    public String sendMessage(String msg) {
-        out.println(msg);
-        String resp = in.readLine();
-        return resp;
-    }
-
-    public void stopConnection() {
-        in.close();
-        out.close();
-        clientSocket.close();
-    }
-     */
+    private final PrintWriter out;
+    private final BufferedReader in;
     public OnlineGame(String ip, int port) throws IOException {
         try {
-            clientSocket = new Socket(ip, port);
+            Socket clientSocket = new Socket(ip, port);
             out = new PrintWriter(clientSocket.getOutputStream(), true);
             in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
         } catch (IOException e) {
@@ -39,18 +23,25 @@ public class OnlineGame implements GameAdapter {
         }
     }
 
+    /**
+     * sends c + roomId + "\n"
+     * @param roomId room to connect
+     * @return connected or not to given server
+     */
     public boolean connectToExistingRoom(int roomId){
         String resp = sendMessage("c" + roomId);
-        return parseBoolean(resp.toCharArray()[1]);
+        return ConvertUtils.parseBoolean(resp.toCharArray()[1]);
     }
 
+    /**
+     * sends h + G/G + "\n"
+     * force server to create new room
+     * wait for h + roomId
+     * @param side which player start on
+     * @return room id
+     */
     public Integer createNewRoom(Side side){
-        char c;
-        switch (side) {
-            case FOX_TURN -> c = 'F';
-            case GOOSE_TURN -> c = 'G';
-            default -> throw new IllegalArgumentException();
-        }
+        char c = ConvertUtils.toSide(side);
         String resp = sendMessage("h" + c);
         return Integer.parseInt(resp.substring(1));
     }
@@ -79,8 +70,8 @@ public class OnlineGame implements GameAdapter {
     }
 
     /**
-     * sends w\n,
-     * wait to get w + X + \n, where X is F/G
+     * sends n\n,
+     * wait to get n + X + \n, where X is F/G
      * @return which move now
      */
     @Override
@@ -89,7 +80,7 @@ public class OnlineGame implements GameAdapter {
         if(resp.toCharArray()[0] != 'n') {
             throw new RuntimeException();
         }
-        return parseSide(resp.toCharArray()[1]);
+        return ConvertUtils.parseSide(resp.toCharArray()[1]);
     }
 
     /**
@@ -103,73 +94,51 @@ public class OnlineGame implements GameAdapter {
         if(resp.toCharArray()[0] != 'w') {
             throw new RuntimeException();
         }
-        return parseSide(resp.toCharArray()[1]);
+        return ConvertUtils.parseSide(resp.toCharArray()[1]);
     }
 
+    // TODO list
     /**
-     * sends nX,Y\n
-     * wait to get n + list + \n, where list
+     * sends aX,Y\n
+     * wait to get a + list + \n, where list
      * @return all possible moves from given cell to his close neighbourhoods
      */
     @Override
     public List<Vec2> getMovesToAllCloseNeighbours(Vec2 cellPos) {
-        String resp = sendMessage("n" + cellPos.x + "," + cellPos.y ); // n0,0
-        // return list
-        return null;
+        String resp = sendMessage("a" + cellPos.x + "," + cellPos.y ); // n0,0
+        return ConvertUtils.parseList(resp.substring(1));
     }
 
     /**
-     * sends cX,Y\n
-     * wait to get c + X + \n, where X is F/G/O/N
+     * sends sX,Y\n
+     * wait to get s + X + \n, where X is F/G/O/N
      * @return state of cell that on given pos
      */
     @Override
     public GameCellStates getCellState(Vec2 pos) {
-        String resp = sendMessage("s" + pos.x + "," + pos.y);
+        String resp = sendMessage("s" + ConvertUtils.toVec(pos));
         if(resp.toCharArray()[0] != 's') {
             throw new RuntimeException();
         }
-        return switch (resp.toCharArray()[1]) {
-            case 'F' -> GameCellStates.FOX;
-            case 'G' -> GameCellStates.GOOSE;
-            case 'O' -> GameCellStates.FREE;
-            case 'N' -> null;
-            default -> throw new IllegalStateException("Unexpected value: " + resp.toCharArray()[1]);
-        };
+        return ConvertUtils.parseState(resp.toCharArray()[1]);
     }
 
     /**
-     * sends mX,Y,A,B\n
+     * sends mX,Y:A,B\n
      * wait to get m + X + \n, where X is T/F
      * @return result move
      */
     @Override
     public boolean move(Vec2 startPos, Vec2 endPos) {
-        String resp = sendMessage("m" + startPos.x + "," + startPos.y + ":" + endPos.x + "," + endPos.y); // m0,0:2,1
+        String resp = sendMessage("m" + ConvertUtils.toVec(startPos) + ":" + ConvertUtils.toVec(endPos)); // m0,0:2,1
         if(resp.toCharArray()[0] != 'm') {
             throw new RuntimeException();
         }
-        return parseBoolean(resp.toCharArray()[1]);
+        return ConvertUtils.parseBoolean(resp.toCharArray()[1]);
 
     }
 
-    private Boolean parseBoolean(char c){
-        return switch (c) {
-            case 'T' -> true;
-            case 'F' -> false;
-            default -> throw new IllegalStateException("Unexpected value: " + c);
-        };
-    }
-
-    private Side parseSide(char c){
-        return switch (c) {
-            case 'F' -> Side.FOX_TURN;
-            case 'G' -> Side.GOOSE_TURN;
-            case 'N' -> null;
-            default -> throw new IllegalStateException("Unexpected value: " + c);
-        };
-    }
-
+    // TODO list
     /**
      * sends pX,Y\n
      * wait to get p + list + \n, where list
@@ -177,8 +146,7 @@ public class OnlineGame implements GameAdapter {
      */
     @Override
     public List<GeometryMove> getPossibleMoves(Vec2 pos) {
-        String resp = sendMessage("p" + pos.x + "," + pos.y ); // m0,0:2,1
-        // return list
-        return null;
+        String resp = sendMessage("p" + ConvertUtils.toVec(pos));
+        return ConvertUtils.parseGeometryMoves(resp.substring(1));
     }
 }

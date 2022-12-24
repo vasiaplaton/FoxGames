@@ -69,13 +69,15 @@ public class BoardGraphics {
             }
             else {
                 int room_id = game.createNewRoom(params.side());
-                if(room_id != 0){
+                if(room_id != -1){
                     res = true;
+                    JOptionPane.showMessageDialog(null, "room id:" + room_id);
                 }
                 else {
-                    // show error
+                    JOptionPane.showMessageDialog(null, "can't force sever to create new room");
                 }
             }
+            if(!res) initNewGame();
             this.game = game;
             playersHandler = new OnlinePlayerHandler(game, game.whichMoveNow());
             gameFinished = false;
